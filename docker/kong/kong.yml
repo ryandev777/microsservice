@@ -1,5 +1,26 @@
 _format_version: "3.0"
 
+# Applies to every route below — the frontend (localhost:3000 in Docker,
+# localhost:5173 in dev) calls these REST endpoints directly from the
+# browser, and without this plugin every request either has no
+# Access-Control-Allow-Origin header (simple GETs silently fail) or gets a
+# 404 on the OPTIONS preflight (any request carrying an Authorization
+# header), since neither service handles OPTIONS itself.
+plugins:
+  - name: cors
+    config:
+      origins:
+        - http://localhost:3000
+        - http://localhost:5173
+      methods:
+        - GET
+        - POST
+        - OPTIONS
+      headers:
+        - Authorization
+        - Content-Type
+      credentials: false
+
 services:
   - name: games-service
     url: http://games:4001
