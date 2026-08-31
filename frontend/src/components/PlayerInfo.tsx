@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { animate, motion } from 'motion/react'
+import { LogOut } from 'lucide-react'
 import { useAuth } from 'react-oidc-context'
+import { Button } from '@/components/ui/button'
 import { centsToDisplay, centsToNumber } from '@/lib/money'
 import { useWalletMe } from '@/hooks/useWallet'
 
@@ -54,9 +56,22 @@ export function PlayerInfo() {
 
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4">
-      <div>
-        <p className="text-xs text-muted-foreground">Jogador</p>
-        <p className="font-semibold">{username}</p>
+      <div className="flex items-center gap-3">
+        <div>
+          <p className="text-xs text-muted-foreground">Jogador</p>
+          <p className="font-semibold">{username}</p>
+        </div>
+        <motion.div whileTap={{ scale: 0.94 }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground hover:text-danger"
+            onClick={() => auth.signoutRedirect()}
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sair
+          </Button>
+        </motion.div>
       </div>
       <div className="text-right">
         <p className="text-xs text-muted-foreground">Saldo</p>
