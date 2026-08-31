@@ -95,7 +95,11 @@ export function BettingControls() {
     <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{phase === 'BETTING' ? 'Fase de apostas' : phase === 'RUNNING' ? 'Rodada em andamento' : 'Rodada encerrada'}</span>
-        {phase === 'BETTING' && <span className="font-mono tabular-nums">{secondsLeft}s</span>}
+        {phase === 'BETTING' && (
+          <span data-testid="betting-countdown" className="font-mono tabular-nums">
+            {secondsLeft}s
+          </span>
+        )}
       </div>
 
       <div className="flex flex-col gap-1">
