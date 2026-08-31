@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,21 @@ import {
 import { useCashout, usePlaceBet } from '@/hooks/useRounds'
 import { useWalletMe } from '@/hooks/useWallet'
 import { useGameStore } from '@/stores/gameStore'
+
+const cashoutGlow = {
+  pulsing: {
+    boxShadow: [
+      '0 0 0px rgba(34,197,94,0.55)',
+      '0 0 26px rgba(34,197,94,0.55)',
+      '0 0 0px rgba(34,197,94,0.55)',
+    ],
+    transition: { duration: 1.3, repeat: Number.POSITIVE_INFINITY },
+  },
+  idle: {
+    boxShadow: '0 0 0px rgba(34,197,94,0)',
+    transition: { duration: 0.3 },
+  },
+}
 
 export function BettingControls() {
   const [amount, setAmount] = useState('10,00')
@@ -80,7 +96,9 @@ export function BettingControls() {
   function handleCashout() {
     cashout.mutate(undefined, {
       onSuccess: (bet) => {
-        toast.success(`Cash out em ${formatMultiplier(bet.cashoutMultiplier ?? multiplier)}`)
+        toast.success(`Cash out em ${formatMultiplier(bet.cashoutMultiplier ?? multiplier)}`, {
+          description: 'Ganhos creditados na sua carteira.',
+        })
         setPendingBetCents(null)
       },
       onError: (error) => {
@@ -91,14 +109,21 @@ export function BettingControls() {
     })
   }
 
+  const urgent = phase === 'BETTING' && secondsLeft <= 3
+
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{phase === 'BETTING' ? 'Fase de apostas' : phase === 'RUNNING' ? 'Rodada em andamento' : 'Rodada encerrada'}</span>
         {phase === 'BETTING' && (
-          <span data-testid="betting-countdown" className="font-mono tabular-nums">
+          <motion.span
+            data-testid="betting-countdown"
+            animate={urgent ? { scale: [1, 1.25, 1], color: ['#ef4444', '#f59e0b', '#ef4444'] } : { scale: 1, color: '#9ca3af' }}
+            transition={urgent ? { duration: 0.6, repeat: Number.POSITIVE_INFINITY } : { duration: 0.2 }}
+            className="font-mono tabular-nums"
+          >
             {secondsLeft}s
-          </span>
+          </motion.span>
         )}
       </div>
 
@@ -114,27 +139,51 @@ export function BettingControls() {
           onChange={(e) => setAmount(e.target.value)}
           aria-invalid={Boolean(amountError)}
         />
-        {amountError && phase === 'BETTING' && (
-          <span className="text-xs text-danger">{amountError}</span>
-        )}
+        <AnimatePresence>
+          {amountError && phase === 'BETTING' && (
+            <motion.span
+              initial={{ opacity: 0, y: -4, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.15 }}
+              className="text-xs text-danger"
+            >
+              {amountError}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="flex gap-2">
-        <Button className="flex-1" disabled={!canBet} onClick={handleBet}>
-          {placeBet.isPending ? 'Apostando...' : 'Apostar'}
-        </Button>
-        <Button
-          className="flex-1"
-          variant="success"
-          disabled={!canCashout}
-          onClick={handleCashout}
+        <motion.div className="flex-1" whileTap={canBet ? { scale: 0.96 } : undefined}>
+          <Button className="w-full" disabled={!canBet} onClick={handleBet}>
+            {placeBet.isPending ? 'Apostando...' : 'Apostar'}
+          </Button>
+        </motion.div>
+
+        <motion.div
+          className="flex-1 rounded-md"
+          whileTap={canCashout ? { scale: 0.96 } : undefined}
+          animate={canCashout ? cashoutGlow.pulsing : cashoutGlow.idle}
         >
-          {cashout.isPending
-            ? 'Sacando...'
-            : canCashout
-              ? `Cash Out (${centsToDisplay(potentialPayout)})`
-              : 'Cash Out'}
-        </Button>
+          <Button className="w-full" variant="success" disabled={!canCashout} onClick={handleCashout}>
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={cashout.isPending ? 'pending' : canCashout ? `payout-${potentialPayout}` : 'idle'}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.15 }}
+              >
+                {cashout.isPending
+                  ? 'Sacando...'
+                  : canCashout
+                    ? `Cash Out (${centsToDisplay(potentialPayout)})`
+                    : 'Cash Out'}
+              </motion.span>
+            </AnimatePresence>
+          </Button>
+        </motion.div>
       </div>
     </div>
   )
