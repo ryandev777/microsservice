@@ -7,7 +7,11 @@ services:
       - name: games-routes
         paths:
           - /games
-        strip_path: true
+        # false: both services expose their routes with the "/games" and
+        # "/wallets" prefixes already included (e.g. GET /games/rounds/current,
+        # POST /wallets), matching the README's documented API surface, so
+        # Kong must forward the request path unchanged.
+        strip_path: false
 
   - name: wallets-service
     url: http://wallets:4002
@@ -15,4 +19,8 @@ services:
       - name: wallets-routes
         paths:
           - /wallets
-        strip_path: true
+        # false: both services expose their routes with the "/games" and
+        # "/wallets" prefixes already included (e.g. GET /games/rounds/current,
+        # POST /wallets), matching the README's documented API surface, so
+        # Kong must forward the request path unchanged.
+        strip_path: false
