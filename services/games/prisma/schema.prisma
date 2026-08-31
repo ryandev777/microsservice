@@ -1,5 +1,9 @@
 generator client {
   provider = "prisma-client-js"
+  // Bun workspaces hoist @prisma/client to the repo root node_modules, so
+  // the games and wallets generated clients would otherwise overwrite each
+  // other. A package-local output keeps them isolated.
+  output   = "../generated/prisma-client"
 }
 
 datasource db {
@@ -33,6 +37,7 @@ model Bet {
   id                String    @id @default(uuid())
   roundId           String    @map("round_id")
   playerId          String    @map("player_id")
+  username          String
   amountCents       BigInt    @map("amount_cents")
   status            String    @default("PLACED_PENDING")
   cashoutMultiplier Decimal?  @map("cashout_multiplier") @db.Decimal(10, 2)
