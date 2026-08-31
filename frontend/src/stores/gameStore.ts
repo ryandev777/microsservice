@@ -1,38 +1,47 @@
 import { create } from 'zustand'
 import type {
   BetCashedOutEvent,
-  BetPlacedEvent,
-  CurrentRoundState,
-  LiveBet,
+  BetConfirmedEvent,
+  BetStatus,
+  CurrentRoundView,
   RoundBettingOpenEvent,
   RoundCrashedEvent,
-  RoundPhase,
-  RoundSummary,
+  RoundHistoryItemView,
+  RoundSettledEvent,
+  RoundStatus,
 } from '@/types'
 
+export interface LiveBet {
+  betId: string
+  username: string
+  amountCents: string
+  status: BetStatus
+  cashoutMultiplier: number | null
+  payoutAmountCents: string | null
+}
+
 interface GameState {
-  phase: RoundPhase
+  phase: RoundStatus
   roundId: string | null
   bettingEndsAt: string | null
   serverSeedHash: string | null
   multiplier: number
   crashPoint: number | null
   liveBets: LiveBet[]
-  history: RoundSummary[]
+  history: RoundHistoryItemView[]
 
+  onSnapshot: (snapshot: CurrentRoundView) => void
   onBettingOpen: (event: RoundBettingOpenEvent) => void
   onRoundStarted: () => void
   onMultiplierTick: (multiplier: number) => void
   onRoundCrashed: (event: RoundCrashedEvent) => void
-  onBetPlaced: (event: BetPlacedEvent) => void
+  onRoundSettled: (event: RoundSettledEvent) => void
+  onBetConfirmed: (event: BetConfirmedEvent) => void
   onBetCashedOut: (event: BetCashedOutEvent) => void
-  setHistory: (history: RoundSummary[]) => void
-  /** Seeds state from the REST snapshot on initial page load, before any WS event arrives. */
-  hydrateFromSnapshot: (snapshot: CurrentRoundState) => void
 }
 
-export const useGameStore = create<GameState>((set, get) => ({
-  phase: 'betting',
+export const useGameStore = create<GameState>((set) => ({
+  phase: 'BETTING',
   roundId: null,
   bettingEndsAt: null,
   serverSeedHash: null,
@@ -41,9 +50,27 @@ export const useGameStore = create<GameState>((set, get) => ({
   liveBets: [],
   history: [],
 
+  onSnapshot: (snapshot) =>
+    set({
+      phase: snapshot.status,
+      roundId: snapshot.roundId,
+      bettingEndsAt: snapshot.bettingEndsAt,
+      serverSeedHash: snapshot.serverSeedHash,
+      multiplier: snapshot.currentMultiplier ?? 1,
+      crashPoint: null,
+      liveBets: snapshot.activeBets.map((bet) => ({
+        betId: bet.betId,
+        username: bet.username,
+        amountCents: bet.amountCents,
+        status: bet.status,
+        cashoutMultiplier: null,
+        payoutAmountCents: null,
+      })),
+    }),
+
   onBettingOpen: (event) =>
     set({
-      phase: 'betting',
+      phase: 'BETTING',
       roundId: event.roundId,
       bettingEndsAt: event.bettingEndsAt,
       serverSeedHash: event.serverSeedHash,
@@ -52,33 +79,34 @@ export const useGameStore = create<GameState>((set, get) => ({
       liveBets: [],
     }),
 
-  onRoundStarted: () => set({ phase: 'running' }),
+  onRoundStarted: () => set({ phase: 'RUNNING' }),
 
   onMultiplierTick: (multiplier) => set({ multiplier }),
 
   onRoundCrashed: (event) =>
     set((state) => ({
-      phase: 'crashed',
+      phase: 'CRASHED',
       crashPoint: event.crashPoint,
       multiplier: event.crashPoint,
       history: [
-        { id: event.roundId, crashPoint: event.crashPoint, createdAt: new Date().toISOString() },
+        { roundId: event.roundId, crashPoint: event.crashPoint, crashedAt: event.crashedAt, createdAt: event.crashedAt },
         ...state.history,
       ].slice(0, 20),
     })),
 
-  onBetPlaced: (event) =>
+  onRoundSettled: () => set({ phase: 'SETTLED' }),
+
+  onBetConfirmed: (event) =>
     set((state) => ({
       liveBets: [
         ...state.liveBets,
         {
           betId: event.betId,
-          roundId: event.roundId,
           username: event.username,
           amountCents: event.amountCents,
-          status: 'pending',
+          status: 'CONFIRMED',
           cashoutMultiplier: null,
-          payoutCents: null,
+          payoutAmountCents: null,
         },
       ],
     })),
@@ -89,26 +117,16 @@ export const useGameStore = create<GameState>((set, get) => ({
         bet.betId === event.betId
           ? {
               ...bet,
-              status: 'cashed_out',
+              status: 'WON',
               cashoutMultiplier: event.multiplier,
-              payoutCents: event.payoutCents,
+              payoutAmountCents: event.payoutAmountCents,
             }
           : bet,
       ),
     })),
-
-  setHistory: (history) => set({ history }),
-
-  hydrateFromSnapshot: (snapshot) => {
-    // Only hydrate before any WS event has set a round — WS state always wins after that.
-    if (get().roundId !== null) return
-    set({
-      phase: snapshot.phase,
-      roundId: snapshot.roundId,
-      bettingEndsAt: snapshot.bettingEndsAt,
-      serverSeedHash: snapshot.serverSeedHash,
-      multiplier: snapshot.multiplier,
-      crashPoint: snapshot.crashPoint,
-    })
-  },
 }))
+
+/** Only hydrate from a REST/snapshot source before any WS round event has set a round — WS always wins after that. */
+export function hasHydratedRound(): boolean {
+  return useGameStore.getState().roundId !== null
+}

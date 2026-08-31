@@ -3,7 +3,7 @@ import { useGameStore } from './gameStore'
 
 function resetStore() {
   useGameStore.setState({
-    phase: 'betting',
+    phase: 'BETTING',
     roundId: null,
     bettingEndsAt: null,
     serverSeedHash: null,
@@ -25,7 +25,7 @@ describe('gameStore', () => {
     })
 
     const state = useGameStore.getState()
-    expect(state.phase).toBe('betting')
+    expect(state.phase).toBe('BETTING')
     expect(state.roundId).toBe('r1')
     expect(state.multiplier).toBe(1)
     expect(state.crashPoint).toBeNull()
@@ -33,7 +33,7 @@ describe('gameStore', () => {
 
   it('moves to running phase on round:started', () => {
     useGameStore.getState().onRoundStarted()
-    expect(useGameStore.getState().phase).toBe('running')
+    expect(useGameStore.getState().phase).toBe('RUNNING')
   })
 
   it('updates the live multiplier on each tick', () => {
@@ -44,8 +44,9 @@ describe('gameStore', () => {
   it('records the crash point and prepends it to history, capped at 20', () => {
     useGameStore.setState({
       history: Array.from({ length: 20 }, (_, i) => ({
-        id: `old-${i}`,
+        roundId: `old-${i}`,
         crashPoint: 1,
+        crashedAt: '2026-01-01T00:00:00.000Z',
         createdAt: '2026-01-01T00:00:00.000Z',
       })),
     })
@@ -53,59 +54,65 @@ describe('gameStore', () => {
     useGameStore.getState().onRoundCrashed({
       roundId: 'r1',
       crashPoint: 3.14,
+      crashedAt: '2026-01-01T00:00:12.000Z',
       serverSeed: 'seed',
+      serverSeedHash: 'hash1',
       clientSeed: 'client',
       nonce: 1,
     })
 
     const state = useGameStore.getState()
-    expect(state.phase).toBe('crashed')
+    expect(state.phase).toBe('CRASHED')
     expect(state.crashPoint).toBe(3.14)
     expect(state.history).toHaveLength(20)
     expect(state.history[0]?.crashPoint).toBe(3.14)
   })
 
-  it('tracks a placed bet as pending and marks it cashed out later', () => {
-    useGameStore.getState().onBetPlaced({
-      roundId: 'r1',
+  it('marks the round settled on round:settled', () => {
+    useGameStore.getState().onRoundSettled({ roundId: 'r1', lostBetsCount: 2 })
+    expect(useGameStore.getState().phase).toBe('SETTLED')
+  })
+
+  it('tracks a confirmed bet as pending and marks it won after cash out', () => {
+    useGameStore.getState().onBetConfirmed({
       betId: 'b1',
+      playerId: 'p1',
       username: 'player',
-      amountCents: 1000,
+      amountCents: '1000',
     })
-    expect(useGameStore.getState().liveBets[0]).toMatchObject({ status: 'pending' })
+    expect(useGameStore.getState().liveBets[0]).toMatchObject({ status: 'CONFIRMED' })
 
     useGameStore.getState().onBetCashedOut({
-      roundId: 'r1',
       betId: 'b1',
+      playerId: 'p1',
       username: 'player',
       multiplier: 2,
-      payoutCents: 2000,
+      payoutAmountCents: '2000',
     })
 
     const bet = useGameStore.getState().liveBets[0]
-    expect(bet?.status).toBe('cashed_out')
-    expect(bet?.payoutCents).toBe(2000)
+    expect(bet?.status).toBe('WON')
+    expect(bet?.payoutAmountCents).toBe('2000')
   })
 
-  it('hydrates from a REST snapshot only before any WS round has been set', () => {
-    useGameStore.getState().hydrateFromSnapshot({
+  it('hydrates every field from a round snapshot (REST or WS)', () => {
+    useGameStore.getState().onSnapshot({
       roundId: 'snapshot-round',
-      phase: 'running',
-      bettingEndsAt: null,
+      status: 'RUNNING',
       serverSeedHash: 'hash',
-      multiplier: 2.3,
-      crashPoint: null,
+      bettingEndsAt: '2026-01-01T00:00:00.000Z',
+      startedAt: '2026-01-01T00:00:05.000Z',
+      currentMultiplier: 2.3,
+      activeBets: [
+        { betId: 'b1', playerId: 'p1', username: 'player', amountCents: '500', status: 'CONFIRMED' },
+      ],
     })
-    expect(useGameStore.getState().roundId).toBe('snapshot-round')
 
-    useGameStore.getState().hydrateFromSnapshot({
-      roundId: 'other-round',
-      phase: 'betting',
-      bettingEndsAt: null,
-      serverSeedHash: 'hash2',
-      multiplier: 1,
-      crashPoint: null,
-    })
-    expect(useGameStore.getState().roundId).toBe('snapshot-round')
+    const state = useGameStore.getState()
+    expect(state.roundId).toBe('snapshot-round')
+    expect(state.phase).toBe('RUNNING')
+    expect(state.multiplier).toBe(2.3)
+    expect(state.liveBets).toHaveLength(1)
+    expect(state.liveBets[0]).toMatchObject({ betId: 'b1', amountCents: '500' })
   })
 })
