@@ -39,6 +39,23 @@ export function LoginPage() {
         </Button>
       </motion.div>
 
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.35 }}
+        className="text-sm text-muted-foreground"
+      >
+        Novo por aqui?{' '}
+        <button
+          type="button"
+          onClick={() => auth.signinRedirect({ extraQueryParams: { kc_action: 'REGISTER' } })}
+          disabled={auth.isLoading}
+          className="font-semibold text-accent underline-offset-2 hover:underline disabled:opacity-50"
+        >
+          Criar conta
+        </button>
+      </motion.p>
+
       {auth.error && <p className="text-sm text-danger">{auth.error.message}</p>}
     </div>
   )
