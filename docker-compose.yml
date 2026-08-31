@@ -55,7 +55,11 @@ services:
     volumes:
       - ./docker/keycloak:/opt/keycloak/data/import:ro
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '200'"]
+      # Keycloak 26.x serves /health/ready on the management port (9000),
+      # not the main HTTP port (8080) — hitting 8080 here always failed,
+      # leaving this container permanently "unhealthy" and blocking every
+      # service that depends on it.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '200'"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -100,12 +104,31 @@ services:
       dockerfile: Dockerfile
     ports:
       - "4001:4001"
-    env_file:
-      - ./services/games/.env
+    environment:
+      PORT: 4001
+      DATABASE_URL: postgresql://admin:admin@postgres:5432/games
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      RABBITMQ_EXCHANGE_GAMES: games.events
+      RABBITMQ_EXCHANGE_WALLETS: wallets.events
+      # ISSUER must match the `iss` claim on tokens, which reflects whatever
+      # host the client used to talk to Keycloak (always localhost:8080 per
+      # the README/realm redirect URIs) — it's a claim comparison, not a
+      # network call, so it stays "localhost" even though this container
+      # can't resolve that host itself. JWKS_URI *is* a network call, so it
+      # uses the in-network service name instead.
+      KEYCLOAK_ISSUER: http://localhost:8080/realms/crash-game
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/crash-game/protocol/openid-connect/certs
+      BETTING_WINDOW_MS: 10000
+      TICK_INTERVAL_MS: 100
+      HOUSE_EDGE: 0.01
+      MULTIPLIER_GROWTH_RATE: 1.06
+      ROUND_COOLDOWN_MS: 3000
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:4001/health || exit 1"]
@@ -123,12 +146,20 @@ services:
       dockerfile: Dockerfile
     ports:
       - "4002:4002"
-    env_file:
-      - ./services/wallets/.env
+    environment:
+      PORT: 4002
+      DATABASE_URL: postgresql://admin:admin@postgres:5432/wallets
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      RABBITMQ_EXCHANGE_GAMES: games.events
+      RABBITMQ_EXCHANGE_WALLETS: wallets.events
+      KEYCLOAK_ISSUER: http://localhost:8080/realms/crash-game
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/crash-game/protocol/openid-connect/certs
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:4002/health || exit 1"]
