@@ -112,7 +112,7 @@ POST /games/bet
 
 ### 2.4 WebSocket
 
-Contrato completo e já validado contra a implementação real em [`docs/websocket-contract.md`](./websocket-contract.md). Resumo:
+
 
 - Servidor → cliente apenas (apostar/sacar são sempre REST).
 - Handshake autenticado via JWT (`auth: { token }`); conexão sem token válido ainda é aceita, só não entra na room privada `player:<id>` (logo não recebe `bet:rejected`).
