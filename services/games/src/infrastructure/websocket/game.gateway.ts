@@ -60,8 +60,15 @@ export class GameGateway implements RoundBroadcaster, OnGatewayConnection {
 
   constructor(private readonly getCurrentRound: GetCurrentRoundUseCase) {}
 
-  broadcastToRound(roundId: string, event: string, payload: Record<string, unknown>): void {
-    this.server.to(`round:${roundId}`).emit(event, payload);
+  // RoundLifecycleScheduler drives exactly one round for the whole service —
+  // there's no per-room isolation to provide, so this broadcasts to every
+  // connected client. A `round:${roundId}` room was tried instead, but
+  // sockets only ever joined it once at connection time (see
+  // handleConnection below) and were never moved into the *next* round's
+  // room when one started, so every client silently stopped receiving
+  // events the moment the round it connected during ended.
+  broadcastToRound(_roundId: string, event: string, payload: Record<string, unknown>): void {
+    this.server.emit(event, payload);
   }
 
   emitToPlayer(playerId: string, event: string, payload: Record<string, unknown>): void {
@@ -80,7 +87,6 @@ export class GameGateway implements RoundBroadcaster, OnGatewayConnection {
 
       const current = await this.getCurrentRound.execute();
       if (current) {
-        await socket.join(`round:${current.roundId}`);
         socket.emit("round:snapshot", { round: current });
       }
     } catch (error) {
