@@ -21,6 +21,7 @@ function App() {
   return (
     <AuthProvider {...oidcConfig}>
       <QueryClientProvider client={queryClient}>
+        <div className="casino-ambience" aria-hidden="true" />
         <Router>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

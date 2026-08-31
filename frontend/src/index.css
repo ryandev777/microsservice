@@ -34,8 +34,95 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 #root {
   min-height: 100svh;
+  position: relative;
+}
+
+/* Ambient casino-floor glow: two slow-drifting neon blobs behind everything. */
+.casino-ambience {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.casino-ambience::before,
+.casino-ambience::after {
+  content: '';
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.16;
+  animation: drift 22s ease-in-out infinite alternate;
+}
+
+.casino-ambience::before {
+  top: -20%;
+  left: -10%;
+  background: radial-gradient(circle, var(--color-primary), transparent 70%);
+}
+
+.casino-ambience::after {
+  bottom: -25%;
+  right: -10%;
+  background: radial-gradient(circle, var(--color-accent), transparent 70%);
+  animation-delay: -11s;
+}
+
+@keyframes drift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(6vw, 5vh) scale(1.12);
+  }
+}
+
+@keyframes neon-text {
+  0%,
+  100% {
+    text-shadow:
+      0 0 6px currentColor,
+      0 0 14px currentColor,
+      0 0 28px color-mix(in srgb, currentColor 60%, transparent);
+  }
+  50% {
+    text-shadow:
+      0 0 10px currentColor,
+      0 0 22px currentColor,
+      0 0 40px color-mix(in srgb, currentColor 70%, transparent);
+  }
+}
+
+.neon-pulse {
+  animation: neon-text 2.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, var(--color-accent), #fff, var(--color-accent));
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+::selection {
+  background: var(--color-primary);
+  color: white;
 }

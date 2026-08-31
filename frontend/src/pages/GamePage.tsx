@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { motion } from 'motion/react'
 import { BettingControls } from '@/components/BettingControls'
 import { CrashChart } from '@/components/CrashChart'
 import { PlayerInfo } from '@/components/PlayerInfo'
@@ -5,11 +7,15 @@ import { RoundBetsList } from '@/components/RoundBetsList'
 import { RoundHistory } from '@/components/RoundHistory'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useEffect } from 'react'
 import { useApiAuthSync } from '@/hooks/useApiAuthSync'
 import { useGameSocket } from '@/hooks/useGameSocket'
 import { useCurrentRound } from '@/hooks/useRounds'
 import { useGameStore } from '@/stores/gameStore'
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0 },
+}
 
 export function GamePage() {
   useApiAuthSync()
@@ -25,12 +31,19 @@ export function GamePage() {
   }, [currentRound, onSnapshot])
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-4 p-4">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-accent">Crash Game</h1>
-      </header>
+    <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col gap-4 p-4">
+      <motion.header
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex items-center justify-between"
+      >
+        <h1 className="shimmer-text text-3xl font-extrabold tracking-tight">Crash Game</h1>
+      </motion.header>
 
-      <PlayerInfo />
+      <motion.div initial="hidden" animate="show" variants={fadeUp} transition={{ duration: 0.4 }}>
+        <PlayerInfo />
+      </motion.div>
 
       {isLoading ? (
         <Skeleton className="h-64 w-full sm:h-80" />
@@ -39,12 +52,22 @@ export function GamePage() {
           Não foi possível carregar a rodada atual. Verifique se o backend está no ar.
         </div>
       ) : (
-        <CrashChart />
+        <motion.div initial="hidden" animate="show" variants={fadeUp} transition={{ duration: 0.4, delay: 0.05 }}>
+          <CrashChart />
+        </motion.div>
       )}
 
-      <BettingControls />
+      <motion.div initial="hidden" animate="show" variants={fadeUp} transition={{ duration: 0.4, delay: 0.1 }}>
+        <BettingControls />
+      </motion.div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={fadeUp}
+        transition={{ duration: 0.4, delay: 0.15 }}
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+      >
         <RoundBetsList />
         <Card>
           <CardHeader>
@@ -54,7 +77,7 @@ export function GamePage() {
             <RoundHistory />
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     </div>
   )
 }
