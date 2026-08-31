@@ -154,6 +154,10 @@ services:
       RABBITMQ_EXCHANGE_WALLETS: wallets.events
       KEYCLOAK_ISSUER: http://localhost:8080/realms/crash-game
       KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/crash-game/protocol/openid-connect/certs
+      # New wallets are funded on creation — deposits aren't exposed over
+      # REST (see README), so this is what lets the seeded test player bet
+      # immediately without a manual DB step.
+      INITIAL_WALLET_BALANCE_CENTS: 100000
     depends_on:
       postgres:
         condition: service_healthy
