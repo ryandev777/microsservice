@@ -1,6 +1,9 @@
 /**
- * Money is always represented as integer cents on the wire and in state.
- * Never convert to a JS float for math — only for display formatting.
+ * Money is always integer cents on the wire — as a JSON string, since the
+ * backend serializes a BigInt (see the games/wallets domain Money value
+ * object). This module is the only place allowed to convert to/from that
+ * representation; every other value in the app stays either a wire string
+ * or a display string, never a float.
  */
 
 const formatter = new Intl.NumberFormat('pt-BR', {
@@ -8,8 +11,14 @@ const formatter = new Intl.NumberFormat('pt-BR', {
   currency: 'BRL',
 })
 
-export function centsToDisplay(cents: number): string {
-  return formatter.format(cents / 100)
+/** Parses a wire cents string (or a plain number already in cents) into a display-safe integer. */
+export function centsToNumber(cents: string | number): number {
+  const n = typeof cents === 'string' ? Number(cents) : cents
+  return Number.isFinite(n) ? n : 0
+}
+
+export function centsToDisplay(cents: string | number): string {
+  return formatter.format(centsToNumber(cents) / 100)
 }
 
 export function reaisInputToCents(value: string): number | null {

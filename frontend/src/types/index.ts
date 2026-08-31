@@ -1,47 +1,53 @@
-export type RoundPhase = 'betting' | 'running' | 'crashed'
+/**
+ * Mirrors services/games and services/wallets response shapes exactly.
+ * Money crosses the wire as a string (BigInt cents serialized to JSON,
+ * since JSON.stringify can't represent BigInt) — never parse it with
+ * anything other than the helpers in @/lib/money.
+ */
 
-export interface RoundSummary {
-  id: string
-  crashPoint: number
-  createdAt: string
-}
+export type RoundStatus = 'BETTING' | 'RUNNING' | 'CRASHED' | 'SETTLED'
 
-export interface CurrentRoundState {
-  roundId: string
-  phase: RoundPhase
-  bettingEndsAt: string | null
-  serverSeedHash: string
-  multiplier: number
-  crashPoint: number | null
-}
+export type BetStatus =
+  | 'PLACED_PENDING'
+  | 'CONFIRMED'
+  | 'REJECTED'
+  | 'CASHOUT_PENDING'
+  | 'WON'
+  | 'LOST'
 
-export type BetStatus = 'pending' | 'cashed_out' | 'lost'
-
-export interface LiveBet {
+export interface ActiveBetView {
   betId: string
-  roundId: string
+  playerId: string
   username: string
-  amountCents: number
+  amountCents: string
   status: BetStatus
-  cashoutMultiplier: number | null
-  payoutCents: number | null
 }
 
-export interface MyBet {
-  betId: string
+// GET /games/rounds/current
+export interface CurrentRoundView {
   roundId: string
-  amountCents: number
-  status: BetStatus
-  cashoutMultiplier: number | null
-  payoutCents: number | null
+  status: RoundStatus
+  serverSeedHash: string
+  bettingEndsAt: string
+  startedAt: string | null
+  currentMultiplier: number | null
+  activeBets: ActiveBetView[]
+}
+
+// GET /games/rounds/history
+export interface RoundHistoryItemView {
+  roundId: string
+  crashPoint: number
+  crashedAt: string | null
   createdAt: string
 }
 
-export interface Wallet {
-  id: string
-  balanceCents: number
+export interface CursorPage<T> {
+  items: T[]
+  nextCursor: string | null
 }
 
+// GET /games/rounds/:roundId/verify
 export interface RoundVerification {
   roundId: string
   serverSeed: string
@@ -49,22 +55,61 @@ export interface RoundVerification {
   clientSeed: string
   nonce: number
   crashPoint: number
+  algorithmVersion: string
 }
 
-export interface PaginatedResponse<T> {
-  items: T[]
-  page: number
-  pageSize: number
-  total: number
+// GET /games/bets/me
+export interface MyBetItemView {
+  betId: string
+  roundId: string
+  amountCents: string
+  status: BetStatus
+  cashoutMultiplier: number | null
+  payoutAmountCents: string | null
+  createdAt: string
+}
+
+// POST /games/bet
+export interface PlaceBetResponse {
+  betId: string
+  roundId: string
+  status: BetStatus
+}
+
+// POST /games/bet/cashout
+export interface CashoutResponse {
+  betId: string
+  cashoutMultiplier: number
+  payoutAmountCents: string
+}
+
+// GET /wallets/me
+export interface WalletBalanceView {
+  playerId: string
+  balanceCents: string
+  balance: string
+}
+
+// POST /wallets
+export interface CreateWalletResponse {
+  id: string
+  playerId: string
+  balance: string
 }
 
 // --- WebSocket server -> client event payloads ---
-// See docs/websocket-contract.md — assumed contract, pending backend alignment.
+// See docs/websocket-contract.md — confirmed against
+// services/games/src/infrastructure/scheduler/round-lifecycle.scheduler.ts
+// and the confirm-bet/confirm-cashout/reject-bet use cases.
+
+export interface RoundSnapshotEvent {
+  round: CurrentRoundView
+}
 
 export interface RoundBettingOpenEvent {
   roundId: string
-  bettingEndsAt: string
   serverSeedHash: string
+  bettingEndsAt: string
 }
 
 export interface RoundStartedEvent {
@@ -81,22 +126,36 @@ export interface RoundMultiplierTickEvent {
 export interface RoundCrashedEvent {
   roundId: string
   crashPoint: number
+  crashedAt: string
   serverSeed: string
+  serverSeedHash: string
   clientSeed: string
   nonce: number
 }
 
-export interface BetPlacedEvent {
+export interface RoundSettledEvent {
   roundId: string
+  lostBetsCount: number
+}
+
+/** Broadcast to the whole round once the wallet debit succeeds. */
+export interface BetConfirmedEvent {
   betId: string
+  playerId: string
   username: string
-  amountCents: number
+  amountCents: string
 }
 
 export interface BetCashedOutEvent {
-  roundId: string
   betId: string
+  playerId: string
   username: string
   multiplier: number
-  payoutCents: number
+  payoutAmountCents: string
+}
+
+/** Emitted only to the player whose bet was rejected (insufficient balance, etc). */
+export interface BetRejectedEvent {
+  betId: string
+  reason: string
 }

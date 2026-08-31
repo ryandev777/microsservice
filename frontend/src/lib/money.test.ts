@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   centsToDisplay,
+  centsToNumber,
   formatMultiplier,
   MAX_BET_CENTS,
   MIN_BET_CENTS,
@@ -29,6 +30,20 @@ describe('reaisInputToCents', () => {
 describe('centsToDisplay', () => {
   it('formats cents as BRL currency', () => {
     expect(centsToDisplay(1000)).toContain('10,00')
+  })
+
+  it('formats a wire cents string (serialized BigInt) the same way', () => {
+    expect(centsToDisplay('1000')).toContain('10,00')
+  })
+})
+
+describe('centsToNumber', () => {
+  it('parses a wire cents string into a number', () => {
+    expect(centsToNumber('123456')).toBe(123456)
+  })
+
+  it('passes a number through unchanged', () => {
+    expect(centsToNumber(500)).toBe(500)
   })
 })
 
