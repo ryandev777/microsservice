@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from 'react-oidc-context'
 import { api } from '@/services/api'
-import type { Wallet } from '@/types'
+import type { CreateWalletResponse, WalletBalanceView } from '@/types'
 
 export function useWalletMe() {
   const auth = useAuth()
@@ -9,7 +9,7 @@ export function useWalletMe() {
   return useQuery({
     queryKey: ['wallet', 'me'],
     queryFn: async () => {
-      const { data } = await api.get<Wallet>('/wallets/me')
+      const { data } = await api.get<WalletBalanceView>('/wallets/me')
       return data
     },
     enabled: auth.isAuthenticated,
@@ -22,11 +22,11 @@ export function useCreateWallet() {
 
   return useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<Wallet>('/wallets')
+      const { data } = await api.post<CreateWalletResponse>('/wallets')
       return data
     },
-    onSuccess: (wallet) => {
-      queryClient.setQueryData(['wallet', 'me'], wallet)
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallet', 'me'] })
     },
   })
 }

@@ -1,25 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from 'react-oidc-context'
 import { api } from '@/services/api'
-import type { CurrentRoundState, MyBet, PaginatedResponse, RoundSummary, RoundVerification } from '@/types'
+import type {
+  CashoutResponse,
+  CurrentRoundView,
+  CursorPage,
+  MyBetItemView,
+  PlaceBetResponse,
+  RoundHistoryItemView,
+  RoundVerification,
+} from '@/types'
 
 export function useCurrentRound() {
   return useQuery({
     queryKey: ['rounds', 'current'],
     queryFn: async () => {
-      const { data } = await api.get<CurrentRoundState>('/games/rounds/current')
+      const { data } = await api.get<CurrentRoundView | null>('/games/rounds/current')
       return data
     },
     refetchOnWindowFocus: false,
   })
 }
 
-export function useRoundHistory(page = 1, pageSize = 20) {
+export function useRoundHistory(limit = 20, cursor: string | null = null) {
   return useQuery({
-    queryKey: ['rounds', 'history', page, pageSize],
+    queryKey: ['rounds', 'history', limit, cursor],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<RoundSummary>>('/games/rounds/history', {
-        params: { page, pageSize },
+      const { data } = await api.get<CursorPage<RoundHistoryItemView>>('/games/rounds/history', {
+        params: { limit, cursor: cursor ?? undefined },
       })
       return data
     },
@@ -37,14 +45,14 @@ export function useRoundVerify(roundId: string | null) {
   })
 }
 
-export function useMyBets(page = 1, pageSize = 20) {
+export function useMyBets(limit = 20, cursor: string | null = null) {
   const auth = useAuth()
 
   return useQuery({
-    queryKey: ['bets', 'me', page, pageSize],
+    queryKey: ['bets', 'me', limit, cursor],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<MyBet>>('/games/bets/me', {
-        params: { page, pageSize },
+      const { data } = await api.get<CursorPage<MyBetItemView>>('/games/bets/me', {
+        params: { limit, cursor: cursor ?? undefined },
       })
       return data
     },
@@ -61,7 +69,7 @@ export function usePlaceBet() {
 
   return useMutation({
     mutationFn: async (input: PlaceBetInput) => {
-      const { data } = await api.post<MyBet>('/games/bet', input)
+      const { data } = await api.post<PlaceBetResponse>('/games/bet', input)
       return data
     },
     onSuccess: () => {
@@ -75,7 +83,7 @@ export function useCashout() {
 
   return useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<MyBet>('/games/bet/cashout')
+      const { data } = await api.post<CashoutResponse>('/games/bet/cashout')
       return data
     },
     onSuccess: () => {
