@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   centsToDisplay,
+  centsToNumber,
   formatMultiplier,
   MAX_BET_CENTS,
   MIN_BET_CENTS,
@@ -29,7 +30,7 @@ export function BettingControls() {
   const [secondsLeft, setSecondsLeft] = useState(0)
 
   useEffect(() => {
-    if (phase !== 'betting' || !bettingEndsAt) {
+    if (phase !== 'BETTING' || !bettingEndsAt) {
       setSecondsLeft(0)
       return
     }
@@ -43,7 +44,7 @@ export function BettingControls() {
   }, [phase, bettingEndsAt])
 
   useEffect(() => {
-    if (phase === 'betting') setPendingBetCents(null)
+    if (phase === 'BETTING') setPendingBetCents(null)
   }, [phase])
 
   const amountCents = useMemo(() => reaisInputToCents(amount), [amount])
@@ -52,12 +53,12 @@ export function BettingControls() {
     if (amountCents === null) return 'Valor inválido'
     if (amountCents < MIN_BET_CENTS) return `Aposta mínima de ${centsToDisplay(MIN_BET_CENTS)}`
     if (amountCents > MAX_BET_CENTS) return `Aposta máxima de ${centsToDisplay(MAX_BET_CENTS)}`
-    if (wallet && amountCents > wallet.balanceCents) return 'Saldo insuficiente'
+    if (wallet && amountCents > centsToNumber(wallet.balanceCents)) return 'Saldo insuficiente'
     return null
   }, [amountCents, wallet])
 
-  const canBet = phase === 'betting' && !amountError && !placeBet.isPending && pendingBetCents === null
-  const canCashout = phase === 'running' && pendingBetCents !== null && !cashout.isPending
+  const canBet = phase === 'BETTING' && !amountError && !placeBet.isPending && pendingBetCents === null
+  const canCashout = phase === 'RUNNING' && pendingBetCents !== null && !cashout.isPending
 
   const potentialPayout = pendingBetCents !== null ? potentialPayoutCents(pendingBetCents, multiplier) : 0
 
@@ -93,8 +94,8 @@ export function BettingControls() {
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{phase === 'betting' ? 'Fase de apostas' : phase === 'running' ? 'Rodada em andamento' : 'Rodada encerrada'}</span>
-        {phase === 'betting' && <span className="font-mono tabular-nums">{secondsLeft}s</span>}
+        <span>{phase === 'BETTING' ? 'Fase de apostas' : phase === 'RUNNING' ? 'Rodada em andamento' : 'Rodada encerrada'}</span>
+        {phase === 'BETTING' && <span className="font-mono tabular-nums">{secondsLeft}s</span>}
       </div>
 
       <div className="flex flex-col gap-1">
@@ -105,11 +106,11 @@ export function BettingControls() {
           id="bet-amount"
           inputMode="decimal"
           value={amount}
-          disabled={phase !== 'betting' || pendingBetCents !== null}
+          disabled={phase !== 'BETTING' || pendingBetCents !== null}
           onChange={(e) => setAmount(e.target.value)}
           aria-invalid={Boolean(amountError)}
         />
-        {amountError && phase === 'betting' && (
+        {amountError && phase === 'BETTING' && (
           <span className="text-xs text-danger">{amountError}</span>
         )}
       </div>

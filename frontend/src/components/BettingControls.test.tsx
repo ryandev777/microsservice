@@ -8,7 +8,7 @@ const placeBetMutate = vi.fn()
 const cashoutMutate = vi.fn()
 
 vi.mock('@/hooks/useWallet', () => ({
-  useWalletMe: () => ({ data: { id: 'w1', balanceCents: 5000 } }),
+  useWalletMe: () => ({ data: { playerId: 'p1', balanceCents: '5000', balance: '50.00' } }),
 }))
 
 vi.mock('@/hooks/useRounds', () => ({
@@ -18,7 +18,7 @@ vi.mock('@/hooks/useRounds', () => ({
 
 function resetStore() {
   useGameStore.setState({
-    phase: 'betting',
+    phase: 'BETTING',
     roundId: 'r1',
     bettingEndsAt: new Date(Date.now() + 10_000).toISOString(),
     serverSeedHash: 'hash',

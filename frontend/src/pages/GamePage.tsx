@@ -16,11 +16,13 @@ export function GamePage() {
   useGameSocket()
 
   const { data: currentRound, isLoading, isError } = useCurrentRound()
-  const hydrateFromSnapshot = useGameStore((s) => s.hydrateFromSnapshot)
+  const onSnapshot = useGameStore((s) => s.onSnapshot)
 
   useEffect(() => {
-    if (currentRound) hydrateFromSnapshot(currentRound)
-  }, [currentRound, hydrateFromSnapshot])
+    // Initial paint only — once the WebSocket connects it emits its own
+    // round:snapshot and every following event supersedes this REST value.
+    if (currentRound) onSnapshot(currentRound)
+  }, [currentRound, onSnapshot])
 
   return (
     <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-4 p-4">

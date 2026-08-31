@@ -19,7 +19,7 @@ export function RoundHistory() {
     <div className="flex flex-wrap gap-2">
       {history.map((round) => (
         <span
-          key={round.id}
+          key={round.roundId}
           className={cn(
             'rounded-full px-3 py-1 text-xs font-semibold tabular-nums',
             colorForCrash(round.crashPoint),

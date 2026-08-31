@@ -22,10 +22,12 @@ export function RoundBetsList() {
               >
                 <span className="truncate">{bet.username}</span>
                 <span className="tabular-nums text-muted-foreground">{centsToDisplay(bet.amountCents)}</span>
-                {bet.status === 'cashed_out' ? (
+                {bet.status === 'WON' ? (
                   <span className="tabular-nums font-semibold text-success">
                     {formatMultiplier(bet.cashoutMultiplier ?? 0)}
                   </span>
+                ) : bet.status === 'LOST' ? (
+                  <span className="text-xs text-danger">perdeu</span>
                 ) : (
                   <span className="text-xs text-muted-foreground">em jogo</span>
                 )}
