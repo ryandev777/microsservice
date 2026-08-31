@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { formatMultiplier } from '@/lib/money'
 import { useGameStore } from '@/stores/gameStore'
@@ -17,17 +18,28 @@ export function RoundHistory() {
 
   return (
     <div className="flex flex-wrap gap-2">
-      {history.map((round) => (
-        <span
-          key={round.roundId}
-          className={cn(
-            'rounded-full px-3 py-1 text-xs font-semibold tabular-nums',
-            colorForCrash(round.crashPoint),
-          )}
-        >
-          {formatMultiplier(round.crashPoint)}
-        </span>
-      ))}
+      <AnimatePresence initial={false}>
+        {history.map((round, index) => (
+          <motion.span
+            key={round.roundId}
+            layout
+            initial={{ opacity: 0, scale: 0.4, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.6 }}
+            transition={
+              index === 0
+                ? { type: 'spring', stiffness: 500, damping: 20 }
+                : { type: 'spring', stiffness: 400, damping: 30 }
+            }
+            className={cn(
+              'rounded-full px-3 py-1 text-xs font-semibold tabular-nums',
+              colorForCrash(round.crashPoint),
+            )}
+          >
+            {formatMultiplier(round.crashPoint)}
+          </motion.span>
+        ))}
+      </AnimatePresence>
     </div>
   )
 }
