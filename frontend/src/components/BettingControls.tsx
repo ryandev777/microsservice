@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
+import { CoinBurst } from '@/components/CoinBurst'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -12,6 +13,7 @@ import {
   potentialPayoutCents,
   reaisInputToCents,
 } from '@/lib/money'
+import { sounds } from '@/lib/sound'
 import { useCashout, usePlaceBet } from '@/hooks/useRounds'
 import { useWalletMe } from '@/hooks/useWallet'
 import { useGameStore } from '@/stores/gameStore'
@@ -34,6 +36,7 @@ const cashoutGlow = {
 export function BettingControls() {
   const [amount, setAmount] = useState('10,00')
   const [pendingBetCents, setPendingBetCents] = useState<number | null>(null)
+  const [coinTrigger, setCoinTrigger] = useState(0)
 
   const phase = useGameStore((s) => s.phase)
   const multiplier = useGameStore((s) => s.multiplier)
@@ -83,7 +86,10 @@ export function BettingControls() {
     placeBet.mutate(
       { amountCents },
       {
-        onSuccess: () => setPendingBetCents(amountCents),
+        onSuccess: () => {
+          setPendingBetCents(amountCents)
+          sounds.bet()
+        },
         onError: (error) => {
           toast.error('Não foi possível apostar', {
             description: error instanceof Error ? error.message : undefined,
@@ -100,6 +106,8 @@ export function BettingControls() {
           description: 'Ganhos creditados na sua carteira.',
         })
         setPendingBetCents(null)
+        sounds.win()
+        setCoinTrigger((n) => n + 1)
       },
       onError: (error) => {
         toast.error('Não foi possível sacar', {
@@ -112,7 +120,8 @@ export function BettingControls() {
   const urgent = phase === 'BETTING' && secondsLeft <= 3
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
+    <div className="relative flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
+      <CoinBurst trigger={coinTrigger} />
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{phase === 'BETTING' ? 'Fase de apostas' : phase === 'RUNNING' ? 'Rodada em andamento' : 'Rodada encerrada'}</span>
         {phase === 'BETTING' && (
