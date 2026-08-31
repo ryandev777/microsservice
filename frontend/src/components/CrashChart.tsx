@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useAnimate } from 'motion/react'
 import { formatMultiplier } from '@/lib/money'
+import { sounds } from '@/lib/sound'
 import { useGameStore } from '@/stores/gameStore'
 
 const CRASH_COLOR = '#ef4444'
@@ -106,6 +107,7 @@ export function CrashChart() {
     if (phase === 'CRASHED' && prevPhaseRef.current !== 'CRASHED') {
       particlesRef.current.push(...spawnCrashBurst(lastHeadRef.current.x, lastHeadRef.current.y, CRASH_COLOR))
       setCrashedAt(multiplier)
+      sounds.crash()
       void animateFn(scope.current, { x: [0, -10, 8, -6, 4, -2, 0] }, { duration: 0.5, ease: 'easeOut' })
     }
     prevPhaseRef.current = phase
