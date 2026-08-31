@@ -159,3 +159,19 @@ export interface BetRejectedEvent {
   betId: string
   reason: string
 }
+
+export interface OnlinePlayerView {
+  playerId: string
+  username: string
+}
+
+/**
+ * Sent once to a socket right after it connects (snapshot), then broadcast
+ * to everyone whenever a player's connection count goes from/to zero.
+ * Only counts sockets that authenticated on the handshake — anonymous
+ * connections still receive everything else, just don't show up here.
+ */
+export interface PlayersOnlineEvent {
+  count: number
+  players: OnlinePlayerView[]
+}

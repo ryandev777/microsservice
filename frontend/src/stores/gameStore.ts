@@ -4,6 +4,8 @@ import type {
   BetConfirmedEvent,
   BetStatus,
   CurrentRoundView,
+  OnlinePlayerView,
+  PlayersOnlineEvent,
   RoundBettingOpenEvent,
   RoundCrashedEvent,
   RoundHistoryItemView,
@@ -29,6 +31,8 @@ interface GameState {
   crashPoint: number | null
   liveBets: LiveBet[]
   history: RoundHistoryItemView[]
+  onlineCount: number
+  onlinePlayers: OnlinePlayerView[]
 
   onSnapshot: (snapshot: CurrentRoundView) => void
   onBettingOpen: (event: RoundBettingOpenEvent) => void
@@ -38,6 +42,7 @@ interface GameState {
   onRoundSettled: (event: RoundSettledEvent) => void
   onBetConfirmed: (event: BetConfirmedEvent) => void
   onBetCashedOut: (event: BetCashedOutEvent) => void
+  onPlayersOnline: (event: PlayersOnlineEvent) => void
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -49,6 +54,8 @@ export const useGameStore = create<GameState>((set) => ({
   crashPoint: null,
   liveBets: [],
   history: [],
+  onlineCount: 0,
+  onlinePlayers: [],
 
   onSnapshot: (snapshot) =>
     set({
@@ -124,6 +131,8 @@ export const useGameStore = create<GameState>((set) => ({
           : bet,
       ),
     })),
+
+  onPlayersOnline: (event) => set({ onlineCount: event.count, onlinePlayers: event.players }),
 }))
 
 /** Only hydrate from a REST/snapshot source before any WS round event has set a round — WS always wins after that. */

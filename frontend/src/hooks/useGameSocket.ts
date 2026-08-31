@@ -7,6 +7,7 @@ import type {
   BetCashedOutEvent,
   BetConfirmedEvent,
   BetRejectedEvent,
+  PlayersOnlineEvent,
   RoundBettingOpenEvent,
   RoundCrashedEvent,
   RoundMultiplierTickEvent,
@@ -26,6 +27,7 @@ export function useGameSocket() {
   const onRoundSettled = useGameStore((s) => s.onRoundSettled)
   const onBetConfirmed = useGameStore((s) => s.onBetConfirmed)
   const onBetCashedOut = useGameStore((s) => s.onBetCashedOut)
+  const onPlayersOnline = useGameStore((s) => s.onPlayersOnline)
 
   useEffect(() => {
     if (!token) return
@@ -43,6 +45,7 @@ export function useGameSocket() {
     const handleBetCashedOut = (event: BetCashedOutEvent) => onBetCashedOut(event)
     const handleBetRejected = (event: BetRejectedEvent) =>
       toast.error('Sua aposta foi recusada', { description: event.reason })
+    const handlePlayersOnline = (event: PlayersOnlineEvent) => onPlayersOnline(event)
 
     socket.on('round:snapshot', handleSnapshot)
     socket.on('round:betting_open', handleBettingOpen)
@@ -53,6 +56,7 @@ export function useGameSocket() {
     socket.on('bet:confirmed', handleBetConfirmed)
     socket.on('bet:cashed_out', handleBetCashedOut)
     socket.on('bet:rejected', handleBetRejected)
+    socket.on('players:online', handlePlayersOnline)
 
     return () => {
       socket.off('round:snapshot', handleSnapshot)
@@ -64,6 +68,7 @@ export function useGameSocket() {
       socket.off('bet:confirmed', handleBetConfirmed)
       socket.off('bet:cashed_out', handleBetCashedOut)
       socket.off('bet:rejected', handleBetRejected)
+      socket.off('players:online', handlePlayersOnline)
       disconnectGameSocket()
     }
   }, [
@@ -76,5 +81,6 @@ export function useGameSocket() {
     onRoundSettled,
     onBetConfirmed,
     onBetCashedOut,
+    onPlayersOnline,
   ])
 }
