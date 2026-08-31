@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Round {
+  id               String    @id @default(uuid())
+  status           String    @default("BETTING")
+  serverSeed       String    @map("server_seed")
+  serverSeedHash   String    @map("server_seed_hash")
+  clientSeed       String    @map("client_seed")
+  nonce            Int
+  crashPoint       Decimal   @map("crash_point") @db.Decimal(10, 2)
+  algorithmVersion String    @default("HMAC_SHA256_V1") @map("algorithm_version")
+  bettingEndsAt    DateTime  @map("betting_ends_at")
+  startedAt        DateTime? @map("started_at")
+  crashedAt        DateTime? @map("crashed_at")
+  settledAt        DateTime? @map("settled_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  bets Bet[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("rounds")
+}
+
+model Bet {
+  id                String    @id @default(uuid())
+  roundId           String    @map("round_id")
+  playerId          String    @map("player_id")
+  amountCents       BigInt    @map("amount_cents")
+  status            String    @default("PLACED_PENDING")
+  cashoutMultiplier Decimal?  @map("cashout_multiplier") @db.Decimal(10, 2)
+  payoutCents       BigInt?   @map("payout_cents")
+  cashoutAt         DateTime? @map("cashout_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  round Round @relation(fields: [roundId], references: [id])
+
+  @@unique([roundId, playerId])
+  @@index([playerId])
+  @@map("bets")
+}
+
+model OutboxMessage {
+  id          String    @id @default(uuid())
+  eventType   String    @map("event_type")
+  payload     Json
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+  attempts    Int       @default(0)
+
+  @@index([publishedAt])
+  @@map("outbox_messages")
+}
+
+model InboxMessage {
+  messageId  String   @id @map("message_id")
+  eventType  String   @map("event_type")
+  consumedAt DateTime @default(now()) @map("consumed_at")
+
+  @@map("inbox_messages")
+}

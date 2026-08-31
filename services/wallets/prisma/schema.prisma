@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Wallet {
+  id           String   @id @default(uuid())
+  playerId     String   @unique @map("player_id")
+  balanceCents BigInt   @default(0) @map("balance_cents")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id          String   @id @default(uuid())
+  walletId    String   @map("wallet_id")
+  type        String
+  amountCents BigInt   @map("amount_cents")
+  referenceId String   @map("reference_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([referenceId])
+  @@map("wallet_transactions")
+}
+
+model OutboxMessage {
+  id          String    @id @default(uuid())
+  eventType   String    @map("event_type")
+  payload     Json
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+  attempts    Int       @default(0)
+
+  @@index([publishedAt])
+  @@map("outbox_messages")
+}
+
+model InboxMessage {
+  messageId  String   @id @map("message_id")
+  eventType  String   @map("event_type")
+  consumedAt DateTime @default(now()) @map("consumed_at")
+
+  @@map("inbox_messages")
+}
