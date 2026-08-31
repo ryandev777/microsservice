@@ -41,10 +41,10 @@ bun run lint    # oxlint
 
 ## Decisões de arquitetura
 
-- **Dinheiro em centavos inteiros** em toda a aplicação (`src/lib/money.ts`): a API é assumida como retornando `amountCents`/`balanceCents` como inteiros; a conversão para exibição (formatação BRL) acontece só na borda de apresentação, nunca em cálculos.
-- **Estado de jogo em tempo real vive no zustand** (`gameStore`), atualizado exclusivamente pelos eventos de WebSocket (`useGameSocket`). O snapshot REST (`GET /games/rounds/current`) é usado apenas para hidratar o estado inicial antes do primeiro evento chegar — depois disso o WebSocket é a fonte de verdade.
+- **Dinheiro em centavos inteiros, string na borda** (`src/lib/money.ts`): o backend serializa `BigInt` como string em todo JSON (`amountCents`, `balanceCents`, `payoutAmountCents`...), já que `JSON.stringify` não representa `BigInt`. `centsToNumber`/`centsToDisplay` são as únicas funções que convertem isso para exibição — nunca um cálculo direto com float.
+- **Estado de jogo em tempo real vive no zustand** (`gameStore`), atualizado exclusivamente pelos eventos de WebSocket (`useGameSocket`). O `GET /games/rounds/current` só pinta a tela mais rápido antes do socket conectar — assim que a conexão abre, o backend manda um `round:snapshot` (ver `docs/websocket-contract.md`) e o WebSocket vira a fonte de verdade.
 - **Estado de servidor (wallet, histórico, apostas do jogador) vive no TanStack Query** — cache, invalidação após apostar/sacar, retry.
-- **Contrato de WebSocket** ainda não estava definido pelo backend no momento em que este frontend foi construído (desenvolvimento em paralelo). O contrato assumido está documentado em [`../docs/websocket-contract.md`](../docs/websocket-contract.md) e centralizado em `src/types/index.ts` — qualquer ajuste no payload real do backend deve mudar apenas esses dois lugares.
+- **Contrato de WebSocket** documentado em [`../docs/websocket-contract.md`](../docs/websocket-contract.md) e centralizado em `src/types/index.ts`, confirmado contra a implementação real do Game Service (`services/games/src/infrastructure/websocket/game.gateway.ts` e o scheduler do ciclo de vida da rodada).
 - **shadcn/ui sem CLI**: o `bunx shadcn init` não completou de forma confiável neste monorepo (Bun workspaces), então os componentes base (`button`, `input`, `card`, `skeleton`) foram escritos manualmente seguindo o mesmo padrão (Radix + `class-variance-authority` + `cn`), preservando a possibilidade de usar `bunx shadcn add <component>` para novos componentes no futuro.
 - **Auth via `react-oidc-context`** em vez de `keycloak-js`: mantém a troca por Auth0/Okta (permitida pelo desafio) restrita a `src/services/auth.ts`, sem acoplar o resto da app a APIs específicas do Keycloak.
 
@@ -63,8 +63,8 @@ src/
 
 ## Estado atual / próximos passos
 
-Este frontend foi construído contra o contrato de API assumido (ver `docs/websocket-contract.md` e o `README.md` raiz) enquanto o backend era desenvolvido em paralelo em outra sessão. Sem o backend no ar, a tela do jogo mostra estados de loading/erro de forma graciosa. Antes de considerar o fluxo completo, validar manualmente com `bun run docker:up`:
+Os tipos e hooks foram reconciliados contra o código real do backend (`services/games`, `services/wallets`), que foi desenvolvido em paralelo em outra sessão — ver `docs/websocket-contract.md`. Falta validar manualmente com `bun run docker:up`:
 
 - Login end-to-end contra o Keycloak real
-- `GET /games/rounds/current` e os eventos de WebSocket batendo com os payloads assumidos
 - Fluxo completo: apostar → multiplicador sobe → cash out / crash → saldo atualizado
+- Testes E2E com Playwright (`tests/e2e/`) cobrindo esse fluxo no browser
