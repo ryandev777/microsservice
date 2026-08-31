@@ -9,6 +9,8 @@ export default mergeConfig(
       environment: 'jsdom',
       setupFiles: ['./src/tests/setup.ts'],
       globals: true,
+      // tests/e2e is Playwright's territory (bun run test:e2e), not Vitest's.
+      exclude: ['node_modules/**', 'tests/e2e/**'],
     },
   }),
 )
