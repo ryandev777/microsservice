@@ -1,5 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { OnGatewayConnection, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
+import {
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  WebSocketGateway,
+  WebSocketServer,
+} from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
@@ -24,7 +29,12 @@ function getSigningKey(kid: string): Promise<string> {
   });
 }
 
-async function bestEffortDecodePlayerId(token: string): Promise<string | null> {
+interface DecodedPlayer {
+  playerId: string;
+  username: string;
+}
+
+async function bestEffortDecodePlayer(token: string): Promise<DecodedPlayer | null> {
   try {
     const decoded = jwt.decode(token, { complete: true });
     if (!decoded || typeof decoded === "string" || !decoded.header.kid) {
@@ -34,8 +44,11 @@ async function bestEffortDecodePlayerId(token: string): Promise<string | null> {
     const verified = jwt.verify(token, publicKey, {
       algorithms: ["RS256"],
       issuer: process.env.KEYCLOAK_ISSUER,
-    }) as { sub?: string };
-    return verified.sub ?? null;
+    }) as { sub?: string; preferred_username?: string };
+    if (!verified.sub) {
+      return null;
+    }
+    return { playerId: verified.sub, username: verified.preferred_username ?? verified.sub };
   } catch {
     return null;
   }
@@ -52,8 +65,13 @@ async function bestEffortDecodePlayerId(token: string): Promise<string | null> {
   path: "/games/socket.io",
   cors: { origin: "*" },
 })
-export class GameGateway implements RoundBroadcaster, OnGatewayConnection {
+export class GameGateway implements RoundBroadcaster, OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(GameGateway.name);
+
+  // playerId -> { username, socketCount }. socketCount handles a player with
+  // multiple tabs open — they only leave the "online" list once every tab
+  // has disconnected, not on the first one.
+  private readonly onlinePlayers = new Map<string, { username: string; socketCount: number }>();
 
   @WebSocketServer()
   server!: Server;
@@ -79,11 +97,15 @@ export class GameGateway implements RoundBroadcaster, OnGatewayConnection {
     try {
       const token = socket.handshake.auth?.token as string | undefined;
       if (token) {
-        const playerId = await bestEffortDecodePlayerId(token);
-        if (playerId) {
-          await socket.join(`player:${playerId}`);
+        const decoded = await bestEffortDecodePlayer(token);
+        if (decoded) {
+          socket.data.playerId = decoded.playerId;
+          await socket.join(`player:${decoded.playerId}`);
+          this.markOnline(decoded.playerId, decoded.username);
         }
       }
+
+      socket.emit("players:online", this.onlinePlayersSnapshot());
 
       const current = await this.getCurrentRound.execute();
       if (current) {
@@ -92,5 +114,42 @@ export class GameGateway implements RoundBroadcaster, OnGatewayConnection {
     } catch (error) {
       this.logger.warn(`handleConnection error: ${(error as Error).message}`);
     }
+  }
+
+  handleDisconnect(socket: Socket): void {
+    const playerId = socket.data.playerId as string | undefined;
+    if (playerId) {
+      this.markOffline(playerId);
+    }
+  }
+
+  private markOnline(playerId: string, username: string): void {
+    const existing = this.onlinePlayers.get(playerId);
+    if (existing) {
+      existing.socketCount += 1;
+    } else {
+      this.onlinePlayers.set(playerId, { username, socketCount: 1 });
+    }
+    this.server.emit("players:online", this.onlinePlayersSnapshot());
+  }
+
+  private markOffline(playerId: string): void {
+    const existing = this.onlinePlayers.get(playerId);
+    if (!existing) {
+      return;
+    }
+    existing.socketCount -= 1;
+    if (existing.socketCount <= 0) {
+      this.onlinePlayers.delete(playerId);
+    }
+    this.server.emit("players:online", this.onlinePlayersSnapshot());
+  }
+
+  private onlinePlayersSnapshot(): { count: number; players: Array<{ playerId: string; username: string }> } {
+    const players = Array.from(this.onlinePlayers.entries()).map(([playerId, { username }]) => ({
+      playerId,
+      username,
+    }));
+    return { count: players.length, players };
   }
 }
